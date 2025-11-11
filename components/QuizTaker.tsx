@@ -6,7 +6,7 @@ import Button from './common/Button';
 import CheckIcon from './icons/CheckIcon';
 import XMarkIcon from './icons/XMarkIcon';
 import SparklesIcon from './icons/SparklesIcon';
-import { GoogleGenAI } from '@google/genai';
+import { GOOGLE_AI_MODEL } from '../aiConfig';
 
 interface QuizTakerProps {
   bankId: number;
@@ -112,21 +112,26 @@ const QuizTaker: React.FC<QuizTakerProps> = ({ bankId, config, onQuizComplete, o
   }, [currentQuestionIndex, processedQuestions, userAnswers, questionBank, onQuizComplete]);
 
   const getHint = async () => {
-      if (!process.env.API_KEY) {
+      if (!import.meta.env.VITE_GOOGLE_API_KEY) {
           setHint("API key is not configured. Cannot fetch hint.");
           return;
       }
       setIsHintLoading(true);
       setHint(null);
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const currentQuestion = processedQuestions[currentQuestionIndex];
         const prompt = `Provide a short, one-sentence hint for the following multiple-choice question. Do NOT give away the answer or mention the correct option. Just give a clue. Question: "${currentQuestion.text}"`;
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
+        const resp = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, model: GOOGLE_AI_MODEL })
         });
-        setHint(response.text);
+        if (!resp.ok) {
+            const errText = await resp.text();
+            throw new Error(`Proxy error: ${resp.status} ${errText}`);
+        }
+        const { text } = await resp.json();
+        setHint(text || "");
       } catch (error) {
         console.error("Hint generation failed:", error);
         setHint("Sorry, couldn't generate a hint right now.");

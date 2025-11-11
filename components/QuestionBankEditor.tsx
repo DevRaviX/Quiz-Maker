@@ -4,7 +4,7 @@ import { getQuestionsForBank, addQuestion, updateQuestion, deleteQuestion, updat
 import Button from './common/Button';
 import { useToast } from './common/ToastProvider';
 import { useModal } from './common/ModalProvider';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GOOGLE_AI_MODEL } from '../aiConfig';
 import SparklesIcon from './icons/SparklesIcon';
 import SimpleWysiwyg from './common/SimpleWysiwyg';
 
@@ -32,36 +32,29 @@ const AIGenerator: React.FC<{ bankId: number; onComplete: () => void; onClose: (
             showToast("Please enter a topic.", 'error');
             return;
         }
-        if (!process.env.API_KEY) {
-            showToast("API key is not configured. Cannot generate questions.", 'error');
+    if (!import.meta.env.VITE_GOOGLE_API_KEY) {
+      showToast("API key is not configured. Cannot generate questions.", 'error');
             return;
         }
         setIsLoading(true);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const response = await ai.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: `Generate ${numQuestions} multiple-choice questions about "${topic}". For each question, provide: a 'text' (the question), an 'options' array with exactly 4 strings, a 'correctAnswerIndex' (0-3), and a brief 'explanation'.`,
-              config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      text: { type: Type.STRING },
-                      options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                      correctAnswerIndex: { type: Type.INTEGER },
-                      explanation: { type: Type.STRING },
-                    },
-                    required: ["text", "options", "correctAnswerIndex", "explanation"],
-                  },
-                },
-              },
+            // Call server-side proxy to keep API key secret
+            const prompt = `Generate ${numQuestions} multiple-choice questions about "${topic}". For each question, provide: a 'text' (the question), an 'options' array with exactly 4 strings, a 'correctAnswerIndex' (0-3), and a brief 'explanation'. Return as a valid JSON array.`;
+            const resp = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, model: GOOGLE_AI_MODEL })
             });
-
-            const generatedQuestions: Omit<Question, 'id'>[] = JSON.parse(response.text);
+            if (!resp.ok) {
+                const errText = await resp.text();
+                throw new Error(`Proxy error: ${resp.status} ${errText}`);
+            }
+            const { text } = await resp.json();
+            const textContent = text || '';
+            // Extract JSON from markdown code blocks if present
+            const jsonMatch = textContent.match(/\[[\s\S]*\]/);
+            const generatedQuestions: Omit<Question, 'id'>[] = JSON.parse(jsonMatch ? jsonMatch[0] : textContent);
             
             const importPromises = generatedQuestions.map(q => addQuestion({ ...q, questionBankId: bankId }));
             await Promise.all(importPromises);
@@ -232,29 +225,33 @@ const QuestionBankEditor: React.FC<QuestionBankEditorProps> = ({ bank, onBack, r
         showToast("Please provide a question text first.", "warning");
         return;
     }
-    if (!process.env.API_KEY) {
-        showToast("API key is not configured.", "error");
+  if (!import.meta.env.VITE_GOOGLE_API_KEY) {
+    showToast("API key is not configured.", "error");
         return;
     }
     setIsExplanationLoading(true);
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const correctOptionText = editingQuestion.options[editingQuestion.correctAnswerIndex];
         const prompt = `Explain why "${correctOptionText}" is the correct answer to the question: "${editingQuestion.text}". Keep the explanation concise and clear.`;
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
+        const resp = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, model: GOOGLE_AI_MODEL })
         });
-        updateQuestionField('explanation', response.text);
+        if (!resp.ok) {
+            const errText = await resp.text();
+            throw new Error(`Proxy error: ${resp.status} ${errText}`);
+        }
+        const { text } = await resp.json();
+        const textContent = text || '';
+        updateQuestionField('explanation', textContent);
     } catch (error) {
         console.error("Explanation generation failed:", error);
         showToast("Failed to generate explanation.", "error");
     } finally {
         setIsExplanationLoading(false);
     }
-  };
-
-  const updateQuestionField = <K extends keyof (typeof editingQuestion)>(field: K, value: (typeof editingQuestion)[K]) => {
+  };  const updateQuestionField = <K extends keyof (typeof editingQuestion)>(field: K, value: (typeof editingQuestion)[K]) => {
       if (editingQuestion) {
           setEditingQuestion({...editingQuestion, [field]: value});
       }
