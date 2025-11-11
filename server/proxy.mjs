@@ -60,7 +60,13 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
-const port = process.env.PORT || 5174;
-app.listen(port, () => {
-  console.log(`AI proxy server listening on http://localhost:${port}`);
-});
+// Export handler for Vercel serverless
+export default app;
+
+// For local development only
+if (process.env.NODE_ENV !== 'production') {
+  const port = process.env.PORT || 5174;
+  app.listen(port, () => {
+    console.log(`AI proxy server listening on http://localhost:${port}`);
+  });
+}
