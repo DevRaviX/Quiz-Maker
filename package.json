@@ -13,7 +13,7 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "idb": "8.0.3",
-    "@google/generative-ai": "^0.21.0",
+    "@google/genai": "^1.29.0", //done changes
     "express": "^4.18.2",
     "dotenv": "^16.3.1"
   },
