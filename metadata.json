@@ -1,0 +1,5 @@
+{
+  "name": "Offline MCQ Quiz PWA",
+  "description": "A complete offline-first Progressive Web App for taking and managing Multiple Choice Question quizzes. Features a built-in admin panel to create, edit, import, and export question banks, with all data stored locally in your browser.",
+  "requestFramePermissions": []
+}
