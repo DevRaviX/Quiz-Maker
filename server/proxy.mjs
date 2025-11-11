@@ -2,7 +2,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import fs from 'fs';
 import path from 'path';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 // Load .env.local if present
 const envPath = path.resolve(process.cwd(), '.env.local');
@@ -49,7 +49,7 @@ app.post('/api/generate', async (req, res) => {
     if (!prompt || typeof prompt !== 'string') return res.status(400).json({ error: 'Missing prompt string in request body.' });
 
     const modelName = model || DEFAULT_MODEL;
-    const client = new GoogleGenerativeAI(API_KEY);
+    const client = new GoogleGenAI(API_KEY);
     const genModel = client.getGenerativeModel({ model: modelName });
     const response = await genModel.generateContent(prompt);
     const text = response?.response?.text ? response.response.text() : '';

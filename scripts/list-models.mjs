@@ -1,7 +1,7 @@
 import util from 'util';
 import fs from 'fs';
 import path from 'path';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from "@google/genai";
 
 const envPath = path.resolve(process.cwd(), '.env.local');
 if (fs.existsSync(envPath)) {
